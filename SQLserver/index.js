@@ -10,7 +10,8 @@ const app = express();
 app.use(express.json());
 
 // Routes Here
-app.post('/qa/questions', controllers.postQ);
+app.get('/qa/questions/:question_id/answers', controllers.getA);
+// app.post('/qa/questions', controllers.postQ);
 
 app.listen(process.env.SERVER_PORT);
 console.log(`Listening at http://localhost:${process.env.SERVER_PORT}`);
