@@ -6,8 +6,8 @@ const renameKey = ( object, oldKey, newKey ) => {
 }
 
 const getA = async ( req, res ) => {
-  let page = req.params.page || 1;
-  let count = req.params.count || 5;
+  let page = req.query.page || 1;
+  let count = req.query.count || 5;
 
   let answerData = await models.getA( req.params.question_id, page, count );
   let ansRows = answerData.rows;
