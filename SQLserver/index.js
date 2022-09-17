@@ -11,6 +11,7 @@ app.use(express.json());
 
 // Routes Here
 app.get('/qa/questions/:question_id/answers', controllers.getA);
+app.get('/qa/questions', controllers.getQ);
 // app.post('/qa/questions', controllers.postQ);
 
 app.listen(process.env.SERVER_PORT);
