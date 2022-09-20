@@ -1,6 +1,13 @@
 const db = require('./db.js');
 
 /*-----------------------------------------
+Cache Storage
+-----------------------------------------*/
+let question = {}; // productID: []
+let answer = {}; // questionID: []
+let photos = {}; // answerID : []
+
+/*-----------------------------------------
 Common Helper Functions
 -----------------------------------------*/
 const renameKey = ( object, oldKey, newKey ) => {
@@ -10,16 +17,53 @@ const renameKey = ( object, oldKey, newKey ) => {
 
 const getP = async ( answerID ) => {
   try {
-    return await db.query(
+    // try to get from memory first
+    if (photos[answerID]) {
+      return photos[answerID];
+    }
+    // if can't, then call DB
+    let temp = await db.query(
       `SELECT id, url FROM answer_photo
       WHERE answer_photo.answerID = ${answerID};`
     );
+    // add results of DB call to memory
+    if ( photos[answerID] === undefined ) { photos[answerID] = [] }; // if DNE, creates new container
+    for ( let i = 0; i < temp.rows.length; i++ ) { photos[answerID].push(temp.rows[i]) }; // if results, adds results to container in memory
+    return photos[answerID];
   } catch (err) {
     // log error to file?
     console.log('there was an error', err)
     return err;
   }
 }
+
+const postP = async ( answerID, photos ) => {
+  try {
+    // create string to add each photo into query
+    let string = '';
+    if ( photos === undefined || photos === null ) { photos = [] };
+    // loop through all entries to add to string
+    for ( let i = 0; i < photos.length; i++ ) {
+      string = string + `('${answerID}', '${photos[i]}'), `;
+      if ( i === photos.length - 1 ) {
+        string = string.substring(0, string.length - 2);
+      }
+    }
+    // if string is actually something worth posting to DB
+    if ( string.length > 0 ) {
+      // post to DB
+      await db.query(
+        `INSERT INTO answer_photo ( answerID, url )
+        VALUES ${string};`
+      )
+      // erase answerID entry in memory {photos}
+      delete photos[answerID];
+    }
+  } catch (err) {
+    // log error to file?
+    return err;
+  }
+};
 
 /*-----------------------------------------
 QUESTIONS
@@ -49,6 +93,9 @@ const getQ = async ( productID, page, count ) => {
         questionRows[j]['answers'][ ansData[k]['id'] ] = ansData[k];
       }
     }
+    //
+    // add query to memory
+    //
     return questionRows;
   } catch (err) {
     // log error to file?
@@ -61,7 +108,7 @@ const postQ = async ( productID, name, email, body ) => {
   try {
     return await db.query(
       `INSERT INTO question ( productID, name, email, body, date, helpful, reported )
-      VALUES ( ${productID}, ${name}, ${email}, ${body}, ${new Date().getTime()}, ${0}, ${0} );`
+      VALUES ( ${productID}, '${name}', '${email}', '${body}', ${new Date().getTime()}, ${0}, ${0} );`
     );
   } catch (err) {
     // log error to file?
@@ -125,7 +172,7 @@ const getA = async ( questionID, page = 1 , count = 5 ) => {
     for ( let i = 0; i < ansRows.length; i++ ) {
       let photoData = await getP(ansRows[i]['answer_id']);
       ansRows[i]['date'] = new Date(parseInt(ansRows[i]['date'])).toISOString();
-      ansRows[i]['photos'] = photoData.rows;
+      ansRows[i]['photos'] = photoData;
     }
 
     let ansData = {
@@ -147,25 +194,13 @@ const postA = async ( questionID, name, email, body, photos ) => {
   try {
     // insert into answer table
     let date = new Date().getTime();
-    console.log(questionID, name, email, body, date);
     let answerID = await db.query(
       `INSERT INTO answer ( questionID, name, email, body, date, helpful, reported )
       VALUES ( ${questionID}, '${name}', '${email}', '${body}', ${date}, ${0}, ${0} )
-      RETURNING id as answerID;`
+      RETURNING id AS answerID;`
     );
     answerID = answerID.rows[0]['answerid'];
-    // create string to add each photo into query
-    let string = '';
-    // loop through all entries to add to string
-    for ( let i = 0; i < photos.length; i++ ) {
-      string = string + `('${answerID}', '${photos[i]}'), `;
-    }
-    string = string.substring(0, string.length - 2);
-    let x = await db.query(
-      `INSERT INTO answer_photo ( answerID, url )
-      VALUES ${string};`
-    );
-      return;
+    await postP(answerID, photos);
   } catch (err) {
     // log error to file?
     console.log('there was an error', err)

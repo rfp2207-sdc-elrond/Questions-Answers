@@ -15,6 +15,15 @@ pool.on('error', (err, client) => {
   process.exit(-1)
 })
 
+// await pool.query(
+//   `DROP INDEX ;`
+// );
+
+// await pool.query(
+//   `CREATE INDEX IF NOT EXISTS question_reported_asc
+//   ON question(reported ASC)`
+// )
+
 let createTables = async () => {
   await pool.query(
     `CREATE TABLE IF NOT EXISTS question (
@@ -30,6 +39,11 @@ let createTables = async () => {
   );
 
   await pool.query(
+    `CREATE INDEX IF NOT EXISTS question_productid_asc_reported_asc
+    ON question(productID ASC, reported ASC )`
+  )
+
+  await pool.query(
     `CREATE TABLE IF NOT EXISTS answer (
       id SERIAL PRIMARY KEY,
       questionID INT REFERENCES question(id),
@@ -43,12 +57,23 @@ let createTables = async () => {
   );
 
   await pool.query(
+    `CREATE INDEX IF NOT EXISTS answer_questionid_asc_reported_asc
+    ON answer(questionID ASC, reported ASC)`
+  )
+
+  await pool.query(
     `CREATE TABLE IF NOT EXISTS answer_photo (
       id SERIAL PRIMARY KEY,
       answerID INT REFERENCES answer(id),
       url TEXT
     )`
   );
+
+  await pool.query(
+      `CREATE INDEX IF NOT EXISTS ap_answerid_asc
+      ON answer_photo(answerID ASC)`
+  );
+
 };
 
 try {
