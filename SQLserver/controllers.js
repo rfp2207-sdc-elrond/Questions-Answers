@@ -1,6 +1,14 @@
 const models = require('./models.js');
 
 /*-----------------------------------------
+Common Helper Functions
+-----------------------------------------*/
+const renameKey = async ( object, oldKey, newKey ) => {
+  object[newKey] = object[oldKey];
+  delete object[oldKey];
+};
+
+/*-----------------------------------------
 QUESTIONS
 -----------------------------------------*/
 const getQ = async ( req, res ) => {
@@ -10,10 +18,23 @@ const getQ = async ( req, res ) => {
       throw new Error();
     }
     let questionData = await models.getQ( product_id, page, count );
-    let output = { 'product_id': product_id, "results": questionData };
-    res.send(output);
+    // add answers data to questions using question_ids
+    for ( let j = 0; j < questionData.length; j++ ) {
+      let answerData = await models.getA(questionData[j]['question_id'])
+      questionData[j]['reported'] = false ;
+      questionData[j]['answers'] = {};
+      for ( let k = 0; k < answerData.length; k++ ) {
+        renameKey(answerData[k], 'answer_id', 'id')
+        questionData[j]['answers'][ answerData[k]['id'] ] = answerData[k];
+      }
+    }
+    // package data neatly
+    let payload = { 'product_id': product_id, "results": questionData };
+    // return payload
+    res.send(payload);
   } catch (err) {
     // log error to file?
+    console.log(err);
     res.sendStatus(500);
   }
 };
@@ -71,7 +92,21 @@ const getA = async ( req, res ) => {
       throw new Error();
     }
     let answerData = await models.getA( question_id, page, count );
-    res.send(answerData);
+    // add additional data
+    for ( let i = 0; i < answerData.length; i++ ) {
+      let id = answerData[i]['answer_id'] || answerData[i]['id']
+      let photoData = await models.getP(id);
+      answerData[i]['photos'] = photoData;
+    }
+    // package data neatly
+    let payload = {
+      "question": question_id,
+      "page": page - 1,
+      "count": count,
+      "results": answerData
+    }
+    // return payload
+    res.send(payload);
   } catch (err) {
     // log error to file?
     res.sendStatus(500);
