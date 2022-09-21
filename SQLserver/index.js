@@ -1,13 +1,18 @@
 require("dotenv").config();
-const express = require("express");
 const path = require("path");
 const controllers = require('./controllers.js');
+const express = require("express");
+const app = express();
+const cors = require('cors');
+const morgan = require('morgan');
 
 // Establishes connection to the database on server start
 const db = require("./db");
 
-const app = express();
+// Middleware Here
 app.use(express.json());
+app.use(cors());
+app.use(morgan('dev'));
 
 // Routes Here
 app.get('/qa/questions', controllers.getQ);
